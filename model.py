@@ -43,7 +43,7 @@ class MultiHeadAttention(nn.Module):
         self.W_o=nn.Linear(d_model, d_model)
         self.dropout=nn.Dropout(p=dropout)
 
-    def forward(self, query, key, value, mask):
+    def forward(self, query, key, value, mask=None):
         batch_size=query.size(0)
         q=self.W_q(query)
         k=self.W_k(key)
