@@ -64,7 +64,7 @@ class MultiHeadAttention(nn.Module):
         return attn_output
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout, max_len):
+    def __init__(self, d_model, dropout=0.1, max_len=5000):
         super().__init__()
         pe=torch.zeros(max_len, d_model)
         pos=torch.arange(0, max_len).unsqueeze(1)
