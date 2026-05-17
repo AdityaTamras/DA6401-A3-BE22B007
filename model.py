@@ -1,5 +1,6 @@
 import math
 import copy
+import sys
 import os
 import gdown
 from typing import Optional, Tuple
@@ -167,7 +168,7 @@ class Transformer(nn.Module):
             self.spacy_de=spacy.load("de_core_news_sm")
         except OSError:
             print("Downloading de_core_news_sm...")
-            subprocess.run(["python", "-m", "spacy", "download", "de_core_news_sm"], check=True)
+            subprocess.run([sys.executable, "-m", "spacy", "download", "de_core_news_sm"], check=True)
             self.spacy_de=spacy.load("de_core_news_sm")
 
         dataset=Multi30kDataset(split="train")
