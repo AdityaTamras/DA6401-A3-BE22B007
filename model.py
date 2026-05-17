@@ -157,8 +157,22 @@ class Decoder(nn.Module):
         return x
     
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, N=6, num_heads=8, d_ff=2048, dropout=0.1, checkpoint_path=None):
+    def __init__(self, src_vocab_size=None, tgt_vocab_size=None, d_model=512, N=6, num_heads=8, d_ff=2048, dropout=0.1, checkpoint_path="checkpoint_epoch_2.pt", gdrive_id="1ExeDE2qKBKsj96hqi-Jkk_vLobCAKIl3"):
         super().__init__()
+        import spacy
+        from dataset import Multi30kDataset
+
+        self.spacy_de=spacy.load("de_core_news_sm")
+
+        dataset=Multi30kDataset(split="train")
+        dataset.build_vocab(min_freq=3)
+        self.src_vocab=dataset.src_vocab
+        self.tgt_vocab=dataset.tgt_vocab
+        self.idx_to_token={v: k for k, v in self.tgt_vocab.items()}
+
+        src_vocab_size=len(self.src_vocab)
+        tgt_vocab_size=len(self.tgt_vocab)
+
         self.d_model=d_model
         self.src_embedding=nn.Embedding(src_vocab_size, d_model)
         self.tgt_embedding=nn.Embedding(tgt_vocab_size, d_model)
@@ -168,8 +182,14 @@ class Transformer(nn.Module):
         decoder_layer=DecoderLayer(d_model, num_heads, d_ff, dropout)
         self.decoder = Decoder(decoder_layer, N)
         self.linear=nn.Linear(d_model, tgt_vocab_size)
-        if checkpoint_path is not None:
-            gdown.download(id="<.pth drive id>", output=checkpoint_path, quiet=False)
+
+        if not os.path.exists(checkpoint_path):
+            print(f"Downloading checkpoint from Google Drive....")
+            gdown.download(id=gdrive_id, output=checkpoint_path, quiet=False)
+
+        checkpoint=torch.load(checkpoint_path, map_location="cpu")
+        self.load_state_dict(checkpoint["model_state_dict"])
+        print(f"Loaded weights from {checkpoint_path}")
 
     def encode(self, src, src_mask):
         src_embeds=self.src_embedding(src)*math.sqrt(self.d_model)
@@ -193,6 +213,7 @@ class Transformer(nn.Module):
         sos_idx=src_vocab["<sos>"]
         eos_idx=src_vocab["<eos>"]
         src_indices = [sos_idx] + [src_vocab.get(tok, unk_idx) for tok in tokens] + [eos_idx]
+        device=next(self.parameters()).device
         src = torch.LongTensor(src_indices).unsqueeze(0)
 
         with torch.no_grad():
@@ -208,10 +229,9 @@ class Transformer(nn.Module):
                 if next_token.item()==tgt_eos_idx:
                     break
                 tgt=torch.cat([tgt, next_token], dim=1)
-            idx_to_word={v: k for k, v in tgt_vocab.items()}
-            predicted_tokens=tgt.squeeze(0).tolist()[1:]
-            translated = " ".join(idx_to_word.get(idx, "<unk>") for idx in predicted_tokens)
-            return translated
+        predicted_tokens=tgt.squeeze(0).tolist()[1:]
+        translated = " ".join(self.idx_to_token.get(idx, "<unk>") for idx in predicted_tokens)
+        return translated
 
 
 
