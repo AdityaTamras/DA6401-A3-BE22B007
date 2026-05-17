@@ -214,23 +214,23 @@ class Transformer(nn.Module):
     def forward(self, src, tgt, src_mask, tgt_mask):
         return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
     
-    def infer(self, src_sentence, src_vocab, tgt_vocab, spacy_de, max_len=50):
+    def infer(self, src_sentence, max_len=50):
         self.eval()
 
-        tokens=[tok.text for tok in spacy_de(src_sentence)]
+        tokens=[tok.text for tok in self.spacy_de(src_sentence)]
 
-        unk_idx=src_vocab["<unk>"]
-        sos_idx=src_vocab["<sos>"]
-        eos_idx=src_vocab["<eos>"]
-        src_indices = [sos_idx] + [src_vocab.get(tok, unk_idx) for tok in tokens] + [eos_idx]
+        unk_idx=self.src_vocab["<unk>"]
+        sos_idx=self.src_vocab["<sos>"]
+        eos_idx=self.src_vocab["<eos>"]
+        src_indices = [sos_idx] + [self.src_vocab.get(tok, unk_idx) for tok in tokens] + [eos_idx]
         device=next(self.parameters()).device
         src = torch.LongTensor(src_indices).unsqueeze(0)
 
         with torch.no_grad():
             src_mask=make_src_mask(src)
             memory=self.encode(src, src_mask)
-            tgt_sos_idx=tgt_vocab["<sos>"]
-            tgt_eos_idx=tgt_vocab["<eos>"]
+            tgt_sos_idx=self.tgt_vocab["<sos>"]
+            tgt_eos_idx=self.tgt_vocab["<eos>"]
             tgt=torch.LongTensor([[tgt_sos_idx]])
             for _ in range(max_len):
                 tgt_mask=make_tgt_mask(tgt)
