@@ -1,6 +1,7 @@
 import math
 import copy
 import sys
+import pickle
 import os
 import gdown
 from typing import Optional, Tuple
@@ -174,10 +175,15 @@ class Transformer(nn.Module):
         self.spacy_de=spacy.load("de_core_news_sm")
         self.spacy_en=spacy.load("en_core_web_sm")
 
-        dataset=Multi30kDataset(split="train")
-        dataset.build_vocab(min_freq=3)
-        self.src_vocab=dataset.src_vocab
-        self.tgt_vocab=dataset.tgt_vocab
+        vocab_path="vocab.pkl"
+        if not os.path.exists(vocab_path):
+            print("Downloading vocab from Google Drive...")
+            gdown.download(id="1HlxDcpSCnqiTblwC1aDQ_LZSH6r6pCh1", output=vocab_path, quiet=False)
+
+        with open(vocab_path, "rb") as f:
+            vocab_data=pickle.load(f)
+        self.src_vocab=vocab_data["src_vocab"]
+        self.tgt_vocab=vocab_data["tgt_vocab"]
         self.idx_to_token={v: k for k, v in self.tgt_vocab.items()}
 
         src_vocab_size=len(self.src_vocab)
