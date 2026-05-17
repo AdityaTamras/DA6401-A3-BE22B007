@@ -158,7 +158,7 @@ class Decoder(nn.Module):
         return x
     
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size=None, tgt_vocab_size=None, d_model=512, N=6, num_heads=8, d_ff=2048, dropout=0.1, checkpoint_path="checkpoint_epoch_2.pt", gdrive_id="1ExeDE2qKBKsj96hqi-Jkk_vLobCAKIl3"):
+    def __init__(self, src_vocab_size=None, tgt_vocab_size=None, d_model=256, N=6, num_heads=8, d_ff=1024, dropout=0.1, checkpoint_path="checkpoint_epoch_2.pt", gdrive_id="1ExeDE2qKBKsj96hqi-Jkk_vLobCAKIl3"):
         super().__init__()
         import spacy
         import subprocess
