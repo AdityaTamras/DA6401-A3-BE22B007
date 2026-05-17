@@ -164,12 +164,15 @@ class Transformer(nn.Module):
         import subprocess
         from dataset import Multi30kDataset
 
-        try:
-            self.spacy_de=spacy.load("de_core_news_sm")
-        except OSError:
-            print("Downloading de_core_news_sm...")
-            subprocess.run([sys.executable, "-m", "spacy", "download", "de_core_news_sm"], check=True)
-            self.spacy_de=spacy.load("de_core_news_sm")
+        for model_name in ["de_core_news_sm", "en_core_web_sm"]:
+            try:
+                spacy.load(model_name)
+            except OSError:
+                print(f"Downloading {model_name}...")
+                subprocess.run([sys.executable, "-m", "spacy", "download", model_name], check=True)
+        
+        self.spacy_de=spacy.load("de_core_news_sm")
+        self.spacy_en=spacy.load("en_core_web_sm")
 
         dataset=Multi30kDataset(split="train")
         dataset.build_vocab(min_freq=3)
