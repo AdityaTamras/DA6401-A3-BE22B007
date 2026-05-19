@@ -22,6 +22,7 @@ def parse_args():
     p=argparse.ArgumentParser(description="DA6401-A3 Transformer Assignment")
 
     p.add_argument("--experiment", required=True, help="Experiment name or number")
+    p.add_argument("--variant", default=None, help="Sub-variant within the experiment")
     p.add_argument("--wandb_project", default="DA6401-A3")
     p.add_argument("--wandb_entity",  default=None)
     p.add_argument("--d_model", type=int,   default=512)
@@ -152,7 +153,7 @@ def save_checkpoint(model, optimizer, scheduler, epoch, path="checkpoint.pt"):
         }
     }, path)
 
-def load_checkpoint(path, model, optimizer, scheduler):
+def load_checkpoint(path, model, optimizer=None, scheduler=None):
     checkpoint=torch.load(path)
     model.load_state_dict(checkpoint['model_state_dict'])
     if optimizer and checkpoint.get('optimizer_state_dict'):
@@ -190,7 +191,7 @@ def build_data(cfg):
     val_size=int(0.1*len(full_data))   
     train_size=len(full_data)-val_size
     print(f"Train dataset size : {train_size} | Val dataset size : {val_size} | Test : {len(test_src)}")
-    train_data, val_data = random_split(full_data, [train_size, val_size], generator=torch.Generator.manual_seed(42))
+    train_data, val_data = random_split(full_data, [train_size, val_size], generator=torch.Generator().manual_seed(42))
 
     bs=cfg["batch_size"]
 
@@ -251,7 +252,7 @@ def _decode(self, memory, src_mask, tgt, tgt_mask):
 
 
 def _forward(self, src, tgt, src_mask, tgt_mask):
-    return self._decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
+    return self.decode(self.encode(src, src_mask), src_mask, tgt, tgt_mask)
 
 
 import types
@@ -392,16 +393,18 @@ def train_model(
         current_lr=optimizer.param_groups[0]["lr"]
 
         confidence=_compute_confidence(model, val_loader, tgt_vocab, device)
+        val_accuracy=_compute_val_accuracy(model, val_loader, tgt_vocab, device)
 
         print(
             f"Epoch {epoch+1:>3} | train_loss={train_loss:.4f} "
-            f"| val_loss={val_loss:.4f} | lr={current_lr:.7f} "
+            f"| val_loss={val_loss:.4f} | val_acc={val_accuracy:.4f} | lr={current_lr:.7f} "
             f"| confidence={confidence:.4f}"
         )
 
         wandb.log({
             f"{run_name}/train_loss": train_loss,
             f"{run_name}/val_loss": val_loss,
+            f"{run_name}/val_accuracy": val_accuracy,
             f"{run_name}/lr": current_lr,
             f"{run_name}/confidence": confidence,
             "epoch": epoch+1
@@ -471,6 +474,36 @@ def _compute_confidence(model, val_loader, tgt_vocab, device):
             return confidence
 
     return 0.0
+
+def _compute_val_accuracy(model, val_loader, tgt_vocab, device):
+    model.eval()
+
+    pad_idx=tgt_vocab["<pad>"]
+
+    correct=0
+    total=0
+
+    with torch.no_grad():
+        for src, tgt in val_loader:
+            src=src.to(device)
+            tgt=tgt.to(device)
+
+            src_mask=make_src_mask(src)
+            tgt_mask=make_tgt_mask(tgt[:, :-1])
+
+            logits=model(src, tgt[:, :-1], src_mask, tgt_mask)
+
+            preds=logits.argmax(dim=-1)
+
+            tgt_out=tgt[:, 1:]
+
+            non_pad=(tgt_out!=pad_idx)
+
+            correct+=((preds==tgt_out) & non_pad).sum().item()
+            total+=non_pad.sum().item()
+
+    return correct/max(total, 1)
+
 
 
 def _log_attention_maps(model, loader, tgt_vocab, device, run_name):
